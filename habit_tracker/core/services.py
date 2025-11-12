@@ -47,7 +47,7 @@ def mark_habit(habit_id: int) -> Habit:
     # TODO: 4. Добавить today в habit.marks
     habits_db[habit_id].marks.append(today)
     # TODO: 5. Вернуть обновленную привычку
-    habits_db[habit_id]
+    return habits_db[habit_id]
 
 
 def get_all_habits() -> List[Habit]:
