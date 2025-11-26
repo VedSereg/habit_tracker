@@ -33,10 +33,9 @@ def mark_habit_simple(habit_id: int) -> Habit:
     
     if habit_id not in habits_db:
         raise HTTPException(status_code=404, detail="Habit not found.")
-    today = date.today()
-    if today in habits_db[habit_id].marks:
+    if TODAY in habits_db[habit_id].marks:
         raise HTTPException(status_code=400, detail="Habit already marked for today.")
-    habits_db[habit_id].marks.append(today)
+    habits_db[habit_id].marks.append(TODAY)
     return habits_db[habit_id]
 
 
