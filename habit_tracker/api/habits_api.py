@@ -10,14 +10,12 @@ from habit_tracker.core.models import (
     HabitMarkResponse
 )
 from habit_tracker.core.services import (
-    calculate_streak, 
     get_all_habits_with_details,
     get_habit_by_id_with_details,
     create_habit,
     update_habit,
     delete_habit, 
     mark_habit, 
-    is_habit_marked_today
 )
 
 router = APIRouter()

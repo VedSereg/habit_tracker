@@ -12,39 +12,6 @@ habits_db: dict[int, Habit] = {
 next_habit_id = 4
 TODAY = date(2025, 7, 12)
 
-
-def create_habit_simple(name: str) -> Habit:
-    """Создать новую привычку."""
-    global next_habit_id
-
-    if name.strip() == '':
-        raise HTTPException(status_code=400, detail="Habit name cannot be empty.")
-    for i in habits_db.values():
-        if name.lower() == i.name.lower():
-            raise HTTPException(status_code=400, detail="Habit with this name already exists.")
-    habit = Habit(id=next_habit_id, name=name)
-    habits_db[habit.id] = habit
-    next_habit_id += 1
-    return habit
-
-
-def mark_habit_simple(habit_id: int) -> Habit:
-    """Отметить выполнение привычки за текущий день."""
-    
-    if habit_id not in habits_db:
-        raise HTTPException(status_code=404, detail="Habit not found.")
-    if TODAY in habits_db[habit_id].marks:
-        raise HTTPException(status_code=400, detail="Habit already marked for today.")
-    habits_db[habit_id].marks.append(TODAY)
-    return habits_db[habit_id]
-
-
-def get_all_habits() -> List[Habit]:
-    """Получить список всех привычек."""
-
-    return list(habits_db.values())
-
-
 def calculate_streak(marks: list[date]) -> int:
     """
     Рассчитывает *текущий* streak по датам в `marks` относительно `TODAY`.  
