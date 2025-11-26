@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Dict, List
 from fastapi import HTTPException
 from habit_tracker.core.models import Habit, HabitCreate, HabitUpdate
@@ -13,7 +13,7 @@ next_habit_id = 4
 TODAY = date(2025, 7, 12)
 
 
-def create_habit(name: str) -> Habit:
+def create_habit_simple(name: str) -> Habit:
     """Создать новую привычку."""
     global next_habit_id
 
@@ -28,7 +28,7 @@ def create_habit(name: str) -> Habit:
     return habit
 
 
-def mark_habit(habit_id: int) -> Habit:
+def mark_habit_simple(habit_id: int) -> Habit:
     """Отметить выполнение привычки за текущий день."""
     
     if habit_id not in habits_db:
@@ -55,8 +55,29 @@ def calculate_streak(marks: list[date]) -> int:
     - если среди последних дат нет ни `TODAY`, ни вчерашнего дня -> streak = 0;
     - иначе отсчитывай подряд идущие дни назад (без пропусков) от `TODAY` или вчерашнего дня.
     """
-    pass
+    if not marks:
+        return 0
 
+    unique_marks = sorted(set(marks), reverse=True)
+
+    yesterday = TODAY - timedelta(days=1)
+    
+    has_today = TODAY in unique_marks
+    has_yesterday = yesterday in unique_marks
+    
+    if not has_today and not has_yesterday:
+        return 0
+    
+    current_date = TODAY if has_today else yesterday
+    streak = 0
+    
+    for date in unique_marks:
+        if date == current_date:
+            streak += 1
+            current_date -= timedelta(days=1)
+        else:
+            break
+    return streak
 
 def get_all_habits_with_details() -> list[dict]:
     """
@@ -66,7 +87,16 @@ def get_all_habits_with_details() -> list[dict]:
     **Важно:** `marks` должен быть списком объектов `date`, так как в шаблонах 
     может использоваться форматирование дат.
     """
-    pass
+    result = []
+    for habit_id in sorted(habits_db.keys()):
+        habit = habits_db[habit_id]
+        habit_dict = {}
+        habit_dict["id"] = habit.id
+        habit_dict["name"] = habit.name
+        habit_dict["marks"] = habit.marks
+        habit_dict["streak"] = calculate_streak(habit.marks)
+        result.append(habit_dict)
+    return result
 
 def get_habit_by_id_with_details(habit_id: int) -> dict | None:
     """
@@ -76,7 +106,17 @@ def get_habit_by_id_with_details(habit_id: int) -> dict | None:
     **Важно:** `marks` должен быть списком объектов `date`, а не строк, 
     так как в шаблонах используется `mark.strftime()
     """
-    pass
+    habit = habits_db.get(habit_id)
+    if not habit:
+        return None
+    
+    return {
+        "id": habit.id,
+        "name": habit.name,
+        "marks": habit.marks,
+        "streak": calculate_streak(habit.marks)
+    }
+
 
 def create_habit(habit_data: HabitCreate) -> Habit:
     """
@@ -85,7 +125,21 @@ def create_habit(habit_data: HabitCreate) -> Habit:
     - имя должно быть уникальным среди существующих привычек;
     - используется и увеличивается глобальная переменная `next_habit_id` (используй `global next_habit_id`).
     """
-    pass
+    global next_habit_id
+    
+    if not habit_data.name or not habit_data.name.strip():
+        raise ValueError("Habit name cannot be empty.")
+
+    for habit in habits_db.values():
+        if habit.name.lower() == habit_data.name.lower():
+            raise ValueError("Habit with this name already exists.")
+
+    habit = Habit(id=next_habit_id, name=habit_data.name.strip())
+    habits_db[next_habit_id] = habit
+    next_habit_id += 1
+    
+    return habit
+
 
 def update_habit(habit_id: int, habit_data: HabitUpdate) -> Habit | None:
     """
@@ -93,12 +147,33 @@ def update_habit(habit_id: int, habit_data: HabitUpdate) -> Habit | None:
     - возвращает обновлённую привычку или `None`, если она не найдена;
     - проверяет непустое имя и уникальность нового имени (ошибки — через `ValueError`).
     """
-    pass
+    habit = habits_db.get(habit_id)
+    if not habit:
+        return None
+    
+
+    if not habit_data.name or not habit_data.name.strip():
+        raise ValueError("Habit name cannot be empty.")
+    
+    new_name = habit_data.name.strip()
+    
+    for existing_habit in habits_db.values():
+        if existing_habit.id != habit_id and existing_habit.name.lower() == new_name.lower():
+            raise ValueError("Habit with this name already exists.")
+    
+    habit.name = new_name
+
+    return habit
 
 def delete_habit(habit_id: int) -> bool:
     """
     Удаляет привычку из `habits_db` и возвращает `True` при успехе, `False`, если такой привычки нет.   
     """
+    if habit_id in habits_db:
+        del habits_db[habit_id]
+        return True
+    else:
+        return False
 
 def mark_habit(habit_id: int) -> dict | None:
     """
@@ -107,8 +182,28 @@ def mark_habit(habit_id: int) -> dict | None:
     - при повторной отметке за `TODAY` выбрасывает `ValueError`;
     - добавляет дату в `marks` и возвращает словарь с `id`, `name`, `last_marked_at` и актуальным `streak`.
     """
+    habit = habits_db.get(habit_id)
+    if not habit:
+        return None
+    if TODAY in habit.marks:
+        raise ValueError("Habit already marked for today.")
+    
+    habit.marks.append(TODAY)
+    streak = calculate_streak(habit.marks)
+    habit.streak = streak
+    return {
+        "id": habit.id,
+        "name": habit.name,
+        "last_marked_at": TODAY.isoformat(),
+        "streak": streak
+    }
+        
 
 def is_habit_marked_today(habit_id: int) -> bool:
     """
     Отвечает, отмечена ли привычка за `TODAY` (используется во вьюхах для отображения кнопки/чекбокса).
     """
+    habit = habits_db.get(habit_id)
+    if not habit:
+        return False
+    return TODAY in habit.marks

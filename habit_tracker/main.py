@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from habit_tracker.api import habits
 from fastapi.staticfiles import StaticFiles
 from habit_tracker.api import habits_api
 from habit_tracker.views import web
