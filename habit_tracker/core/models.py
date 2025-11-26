@@ -10,6 +10,7 @@ class Habit:
         self.id = id
         self.name = name
         self.marks: List[date] = []
+        self.streak: int = 0
 
 
 class HabitCreate(BaseModel):
@@ -32,8 +33,27 @@ class HabitMarkResponse(BaseModel):
     id: int
     name: str
     last_marked_at: str
+    streak: int
 
 class HabitListResponse(BaseModel):
     id: int
     name: str
     marks: List[str]
+    streak: int
+
+class HabitUpdate(BaseModel):
+    name: str
+
+class HabitBase(BaseModel):
+    id: int
+    name: str
+
+class HabitResponse(HabitBase):
+    marks: list[date]
+    streak: int
+
+class HabitDetailResponse(HabitResponse):
+    id: int
+    name: str  
+    marks: List[str]
+    streak: int
