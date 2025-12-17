@@ -1,5 +1,4 @@
 from typing import List
-from fastapi import HTTPException
 from fastapi import APIRouter, status
 from habit_tracker.core import services
 from habit_tracker.core.models import (
@@ -20,17 +19,19 @@ from habit_tracker.core.services import (
     get_habit_by_id,
     calculate_habit_stats
 )
+from habit_tracker.core.exceptions import HabitNotFoundException
 
 router = APIRouter()
 
 
 @router.post("/", response_model=HabitResponse, status_code=status.HTTP_201_CREATED)
 def create_habit_endpoint(habit: HabitCreate):
+    """Создать новую привычку."""
     created_habit = create_habit(habit)
     return HabitResponse(
         id=created_habit.id,
         name=created_habit.name,
-        marks=created_habit.marks,
+        marks=created_habit.marks,  
         streak=created_habit.streak
     )
     
@@ -54,7 +55,7 @@ def get_habit_by_id_endpoint(habit_id: int):
     """Получить привычку по id."""
     habit = get_habit_by_id_with_details(habit_id)
     if habit is None:
-        raise HTTPException(status_code=404, detail="Habit not found")
+        raise HabitNotFoundException()
     
     return HabitResponse(
         id=habit["id"],
@@ -66,45 +67,30 @@ def get_habit_by_id_endpoint(habit_id: int):
 @router.put("/{habit_id}/", response_model=HabitBase)
 def update_habit_endpoint(habit_id: int, habit_data: HabitUpdate):
     """Обновить привычку."""
-    try:
-        updated_habit = update_habit(habit_id, habit_data)
-        if updated_habit is None:
-            raise HTTPException(status_code=404, detail="Habit not found")
-        
-        return HabitBase(
-            id=updated_habit.id,
-            name=updated_habit.name
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    updated_habit = update_habit(habit_id, habit_data)
+    return HabitBase(
+        id=updated_habit.id,
+        name=updated_habit.name
+    )
     
 @router.delete("/{habit_id}/", status_code=status.HTTP_204_NO_CONTENT)
 def delete_habit_endpoint(habit_id: int):
-    delete = delete_habit(habit_id)
-    if delete == False:
-        raise HTTPException(status_code=404, detail="Habit not found")
+    delete_habit(habit_id)
 
 @router.post("/{habit_id}/mark/", response_model=HabitMarkResponse)
 def mark_habit_endpoint(habit_id: int):
-    try:
-        mark = mark_habit(habit_id)
-        if mark is None:
-            raise HTTPException(status_code=404, detail="Habit not found")
-        return HabitMarkResponse(
-            id=mark["id"],
-            name=mark["name"],
-            last_marked_at=mark["last_marked_at"],
-            streak=mark["streak"]
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
+    mark = mark_habit(habit_id)
+    return HabitMarkResponse(
+        id=mark["id"],
+        name=mark["name"],
+        last_marked_at=mark["last_marked_at"],
+        streak=mark["streak"]
+    )
 
 @router.get("/{habit_id}/stats/", response_model=HabitStatsResponse)
 def get_habit_stats(habit_id: int):
     """Получить статистику по привычке."""
     habit = get_habit_by_id(habit_id)
-    
     stats = calculate_habit_stats(habit)
     
     return HabitStatsResponse(

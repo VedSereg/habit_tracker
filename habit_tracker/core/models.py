@@ -1,6 +1,6 @@
 from datetime import date
 from typing import List
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 
 
 class Habit:
@@ -23,22 +23,10 @@ class HabitCreate(BaseModel):
     """Модель для создания привычки."""
     name: str
     
-    @validator('name')
-    def name_must_not_be_empty(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Habit name cannot be empty.")
-        return v.strip()
-
 
 class HabitUpdate(BaseModel):
     """Модель для обновления привычки."""
     name: str
-    
-    @validator('name')
-    def name_must_not_be_empty(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Habit name cannot be empty.")
-        return v.strip()
 
 
 class HabitResponse(HabitBase):

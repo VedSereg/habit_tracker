@@ -46,18 +46,12 @@ def get_habit_detail(request: Request, habit_id: int):
 @router.post("/habit/add", name="add_habit_from_form")
 def create_habit_form(name: str = Form(...)): 
     """Добавление привычки из формы."""
-    try:
-        habit_data = HabitCreate(name=name)
-        create_habit(habit_data)
-        return RedirectResponse(
-            url=router.url_path_for("main-page"),
-            status_code=303
-        )
-    except ValueError:
-        return RedirectResponse(
-            url=router.url_path_for("main-page"), 
-            status_code=303
-        )
+    habit_data = HabitCreate(name=name)
+    create_habit(habit_data)
+    return RedirectResponse(
+        url=router.url_path_for("main-page"),
+        status_code=303
+    )
 
 @router.post("/habit/{habit_id}/mark", name="mark_habit_from_form")
 def mark_habit_form(habit_id: int):
