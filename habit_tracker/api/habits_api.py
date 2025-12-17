@@ -7,7 +7,8 @@ from habit_tracker.core.models import (
     HabitResponse, 
     HabitBase,
     HabitUpdate, 
-    HabitMarkResponse
+    HabitMarkResponse,
+    HabitStatsResponse
 )
 from habit_tracker.core.services import (
     get_all_habits_with_details,
@@ -15,7 +16,9 @@ from habit_tracker.core.services import (
     create_habit,
     update_habit,
     delete_habit, 
-    mark_habit, 
+    mark_habit,
+    get_habit_by_id,
+    calculate_habit_stats
 )
 
 router = APIRouter()
@@ -23,17 +26,13 @@ router = APIRouter()
 
 @router.post("/", response_model=HabitResponse, status_code=status.HTTP_201_CREATED)
 def create_habit_endpoint(habit: HabitCreate):
-    """Создать новую привычку."""
-    try:
-        created_habit = create_habit(habit)
-        return HabitResponse(
-            id=created_habit.id,
-            name=created_habit.name,
-            marks=created_habit.marks,  
-            streak=created_habit.streak
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    created_habit = create_habit(habit)
+    return HabitResponse(
+        id=created_habit.id,
+        name=created_habit.name,
+        marks=created_habit.marks,
+        streak=created_habit.streak
+    )
     
 @router.get("/", response_model=List[HabitResponse])
 def get_all_habits_endpoint():
@@ -101,3 +100,15 @@ def mark_habit_endpoint(habit_id: int):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/{habit_id}/stats/", response_model=HabitStatsResponse)
+def get_habit_stats(habit_id: int):
+    """Получить статистику по привычке."""
+    habit = get_habit_by_id(habit_id)
+    
+    stats = calculate_habit_stats(habit)
+    
+    return HabitStatsResponse(
+        id=habit.id,
+        name=habit.name,
+        **stats
+    )

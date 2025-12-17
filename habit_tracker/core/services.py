@@ -1,7 +1,12 @@
 from datetime import date, timedelta
 from typing import Dict, List
-from fastapi import HTTPException
 from habit_tracker.core.models import Habit, HabitCreate, HabitUpdate
+from habit_tracker.core.exceptions import (
+    HabitNotFoundException,
+    HabitAlreadyMarkedTodayException, 
+    HabitNameConflictException,
+    InvalidInputException
+)
 
 # In-memory хранилище
 habits_db: dict[int, Habit] = {
@@ -83,6 +88,12 @@ def get_habit_by_id_with_details(habit_id: int) -> dict | None:
         "streak": calculate_streak(habit.marks)
     }
 
+def get_habit_by_id(habit_id: int) -> Habit:
+    """Получить привычку по ID или выбросить исключение если не найдена."""
+    habit = habits_db.get(habit_id)
+    if not habit:
+        raise HabitNotFoundException()
+    return habit
 
 def create_habit(habit_data: HabitCreate) -> Habit:
     """
@@ -94,11 +105,11 @@ def create_habit(habit_data: HabitCreate) -> Habit:
     global next_habit_id
     
     if not habit_data.name or not habit_data.name.strip():
-        raise ValueError("Habit name cannot be empty.")
+        raise InvalidInputException("Habit name cannot be empty.")
 
     for habit in habits_db.values():
         if habit.name.lower() == habit_data.name.lower():
-            raise ValueError("Habit with this name already exists.")
+            raise HabitNameConflictException()
 
     habit = Habit(id=next_habit_id, name=habit_data.name.strip())
     habits_db[next_habit_id] = habit
@@ -115,33 +126,29 @@ def update_habit(habit_id: int, habit_data: HabitUpdate) -> Habit | None:
     """
     habit = habits_db.get(habit_id)
     if not habit:
-        return None
+        raise HabitNotFoundException()
     
 
     if not habit_data.name or not habit_data.name.strip():
-        raise ValueError("Habit name cannot be empty.")
+        raise InvalidInputException("Habit name cannot be empty.")
     
     new_name = habit_data.name.strip()
     
     for existing_habit in habits_db.values():
         if existing_habit.id != habit_id and existing_habit.name.lower() == new_name.lower():
-            raise ValueError("Habit with this name already exists.")
+            raise HabitNameConflictException()
     
     habit.name = new_name
 
     return habit
 
-def delete_habit(habit_id: int) -> bool:
-    """
-    Удаляет привычку из `habits_db` и возвращает `True` при успехе, `False`, если такой привычки нет.   
-    """
+def delete_habit(habit_id: int) -> None:
     if habit_id in habits_db:
         del habits_db[habit_id]
-        return True
     else:
-        return False
+        raise HabitNotFoundException()
 
-def mark_habit(habit_id: int) -> dict | None:
+def mark_habit(habit_id: int) -> dict:
     """
     Отмечает привычку за `TODAY`:
     - при отсутствии привычки возвращает `None`;
@@ -150,9 +157,9 @@ def mark_habit(habit_id: int) -> dict | None:
     """
     habit = habits_db.get(habit_id)
     if not habit:
-        return None
+        raise HabitNotFoundException()
     if TODAY in habit.marks:
-        raise ValueError("Habit already marked for today.")
+        raise HabitAlreadyMarkedTodayException()
     
     habit.marks.append(TODAY)
     streak = calculate_streak(habit.marks)
@@ -173,3 +180,65 @@ def is_habit_marked_today(habit_id: int) -> bool:
     if not habit:
         return False
     return TODAY in habit.marks
+
+def get_all_habits() -> list[Habit]:
+    """Получить список всех объектов Habit (не словарей!)."""
+    return list(habits_db.values())
+
+def mark_habit_completed(habit_id: int) -> Habit:
+    """Отметить привычку за текущий день (возвращает объект Habit)."""
+    habit = get_habit_by_id(habit_id)  
+    if TODAY in habit.marks:
+        raise HabitAlreadyMarkedTodayException()
+    
+    habit.marks.append(TODAY)
+    habit.streak = calculate_streak(habit.marks)
+    return habit
+
+def calculate_max_streak(marks: list[date]) -> int:
+    """Рассчитывает максимальный streak за всё время."""
+    if not marks:
+        return 0
+    
+    unique_marks = sorted(set(marks))
+    
+    if len(unique_marks) == 1:
+        return 1
+    
+    max_streak = 1
+    current_streak = 1
+    
+    for i in range(1, len(unique_marks)):
+        if (unique_marks[i] - unique_marks[i-1]).days == 1:
+            current_streak += 1
+            max_streak = max(max_streak, current_streak)
+        else:
+            current_streak = 1
+    
+    return max_streak
+
+
+def calculate_habit_stats(habit: Habit) -> dict:
+    """Рассчитывает полную статистику по привычке."""
+    marks = habit.marks
+    
+    total_marks = len(marks)
+    current_streak = calculate_streak(marks)
+    max_streak = calculate_max_streak(marks)
+    
+    success_rate = 0.0
+    if marks:
+        first_date = min(marks)
+        days_since_start = (TODAY - first_date).days + 1
+        if days_since_start > 0:
+            success_rate = round((total_marks / days_since_start) * 100, 2)
+    
+    last_dates = sorted(marks, reverse=True)[:5]
+    
+    return {
+        "total_marks": total_marks,
+        "current_streak": current_streak,
+        "max_streak": max_streak,
+        "success_rate": success_rate,
+        "last_dates": last_dates
+    }

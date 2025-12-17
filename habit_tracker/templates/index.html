@@ -10,6 +10,10 @@
     <div class="container">
         <h1>Мои привычки</h1>
 
+        {% if error %}
+            <div class="error-message">{{ error }}</div>
+        {% endif %}
+
         <div class="habit-list">
             {% if habits %}
                 {% for habit in habits %}
@@ -41,6 +45,11 @@
                 <button type="submit" class="btn">Добавить</button>
             </form>
         </div>
+
+        <div class="stats-link">
+            <a href="/stats/">📊 Посмотреть статистику всех привычек</a>
+        </div>
+
         <div class="api-docs-link">
             <a href="/docs">Документация API (Swagger)</a>
         </div>

@@ -8,7 +8,9 @@ from habit_tracker.core.services import (
     create_habit,
     update_habit,
     delete_habit,
-    mark_habit
+    mark_habit,
+    get_all_habits,
+    calculate_habit_stats
 )
 from habit_tracker.core.models import HabitCreate, HabitUpdate
 
@@ -97,4 +99,26 @@ def delete_habit_form(habit_id: int):
     return RedirectResponse(
         url=router.url_path_for("main-page"),
         status_code=303
+    )
+
+@router.get("/stats/", name="stats-page")
+def get_stats_page(request: Request):
+    """Страница статистики всех привычек."""
+    habits = get_all_habits()
+    
+    stats_data = []
+    for habit in habits:
+        stats = calculate_habit_stats(habit)
+        stats_data.append({
+            "id": habit.id,
+            "name": habit.name,
+            **stats
+        })
+    
+    return templates.TemplateResponse(
+        "stats.html",
+        {
+            "request": request,
+            "stats": stats_data
+        }
     )
